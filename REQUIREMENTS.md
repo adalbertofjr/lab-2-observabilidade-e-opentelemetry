@@ -215,17 +215,17 @@ services:
 ## 📋 Checklist de Implementação
 
 ### Fase 1: Serviço B (Orquestração)
-- [ ] Criar projeto Go para Serviço B
-- [ ] Implementar endpoint de recebimento de CEP
-- [ ] Integrar com ViaCEP API
-- [ ] Integrar com WeatherAPI
-- [ ] Implementar conversões de temperatura
-- [ ] Implementar tratamento de erros (422, 404)
-- [ ] Criar testes unitários
-- [ ] Criar Dockerfile
+- [x] Criar projeto Go para Serviço B
+- [x] Implementar endpoint de recebimento de CEP
+- [x] Integrar com ViaCEP API
+- [x] Integrar com WeatherAPI
+- [x] Implementar conversões de temperatura
+- [x] Implementar tratamento de erros (422, 404)
+- [x] Criar testes unitários
+- [x] Criar Dockerfile
 
 ### Fase 2: Serviço A (Input)
-- [ ] Criar projeto Go para Serviço A
+- [x] Criar projeto Go para Serviço A
 - [ ] Implementar endpoint POST /cep
 - [ ] Implementar validação de CEP (8 dígitos, string)
 - [ ] Implementar chamada HTTP para Serviço B
