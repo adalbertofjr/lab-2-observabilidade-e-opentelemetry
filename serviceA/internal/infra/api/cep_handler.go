@@ -5,18 +5,27 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/adalbertofjr/lab-2-go-service-a-otel/pkg/utility"
+	"github.com/adalbertofjr/lab-2-go-service-a-otel/api/dto"
+	"github.com/adalbertofjr/lab-2-go-service-a-otel/internal/domain/entity"
 )
 
-type CEPHandler struct {
+type WeatherUseCaseInterface interface {
+	GetCurrentWeather(cep string) (*entity.Weather, error)
+}
+
+type WeatherHandler struct {
+	usecase WeatherUseCaseInterface
+}
+
+func NewWeatherHandler(useCase WeatherUseCaseInterface) *WeatherHandler {
+	return &WeatherHandler{usecase: useCase}
+}
+
+type CEP struct {
 	CEP string `json:"cep"`
 }
 
-func NewCEPHandler() *CEPHandler {
-	return &CEPHandler{}
-}
-
-func (c *CEPHandler) GetCurrentWeather(w http.ResponseWriter, r *http.Request) {
+func (c *WeatherHandler) GetCurrentWeather(w http.ResponseWriter, r *http.Request) {
 	req := r.Body
 	defer req.Close()
 
@@ -24,41 +33,33 @@ func (c *CEPHandler) GetCurrentWeather(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-	var cep CEPHandler
+
+	var cep CEP
 	err = json.Unmarshal(body, &cep)
 	if err != nil {
 		panic(err)
 	}
 
-	cepValidated, err := utility.CEPValidator(cep.CEP)
+	currentWeather, err := c.usecase.GetCurrentWeather(cep.CEP)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	httpClient := &http.Client{}
-	reqWeather, err := http.NewRequest("GET", "http://localhost:8000/?cep="+cepValidated, nil)
-	if err != nil {
-		panic(err)
-	}
+	weatherDTO := dto.NewWeatherDTO(
+		currentWeather.City,
+		currentWeather.Temp_c,
+		currentWeather.Temp_f,
+		currentWeather.Temp_k,
+	)
 
-	resp, err := httpClient.Do(reqWeather)
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-
-	bodyWeather, err := io.ReadAll(resp.Body)
-	if err != nil {
-		panic(err)
-	}
-
-	err = json.Unmarshal(bodyWeather, &cep)
-	if err != nil {
-		panic(err)
+	weatherCurrentJSON, jsonErr := json.Marshal(weatherDTO)
+	if jsonErr != nil {
+		http.Error(w, "Error marshalling location data", http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write(bodyWeather)
+	w.Write([]byte(weatherCurrentJSON))
 }
