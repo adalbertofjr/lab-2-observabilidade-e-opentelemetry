@@ -3,14 +3,15 @@ receivers:
     protocols:
       grpc:
         endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
 
 exporters:
   debug:
 
-  otlp:
-    endpoint: "otel-collector:4317"
-    tls:
-      insecure: true
+  zipkin:
+    endpoint: "http://zipkin-all-in-one:9411/api/v2/spans"
 
 processors:
   batch:
@@ -18,18 +19,14 @@ processors:
 extensions:
   health_check:
     endpoint: 0.0.0.0:13133
-  pprof:
-    endpoint: 0.0.0.0:1888
-  zpages:
-    endpoint: 0.0.0.0:55679
 
 service:
-  extensions: [health_check, pprof, zpages]
+  extensions: [health_check]
   pipelines:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [debug, otlp]
+      exporters: [debug, zipkin]
     # metrics:
     #   receivers: [otlp]
     #   processors: [batch]

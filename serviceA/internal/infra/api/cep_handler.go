@@ -7,6 +7,9 @@ import (
 
 	"github.com/adalbertofjr/lab-2-go-service-a-otel/api/dto"
 	"github.com/adalbertofjr/lab-2-go-service-a-otel/internal/domain/entity"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type WeatherUseCaseInterface interface {
@@ -15,10 +18,11 @@ type WeatherUseCaseInterface interface {
 
 type WeatherHandler struct {
 	usecase WeatherUseCaseInterface
+	tracer  trace.Tracer
 }
 
-func NewWeatherHandler(useCase WeatherUseCaseInterface) *WeatherHandler {
-	return &WeatherHandler{usecase: useCase}
+func NewWeatherHandler(useCase WeatherUseCaseInterface, tracer trace.Tracer) *WeatherHandler {
+	return &WeatherHandler{usecase: useCase, tracer: tracer}
 }
 
 type CEP struct {
@@ -26,6 +30,12 @@ type CEP struct {
 }
 
 func (c *WeatherHandler) GetCurrentWeather(w http.ResponseWriter, r *http.Request) {
+	carrier := propagation.HeaderCarrier(r.Header)
+	ctx := r.Context()
+	ctx = otel.GetTextMapPropagator().Extract(ctx, carrier)
+
+	ctx, spanStart := c.tracer.Start(ctx, "GetCurrentWeatherHandler")
+
 	req := r.Body
 	defer req.Close()
 
@@ -62,4 +72,6 @@ func (c *WeatherHandler) GetCurrentWeather(w http.ResponseWriter, r *http.Reques
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(weatherCurrentJSON))
+
+	spanStart.End()
 }
