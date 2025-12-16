@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -13,7 +14,7 @@ import (
 )
 
 type WeatherUseCaseInterface interface {
-	GetCurrentWeather(cep string) (*entity.Weather, error)
+	GetCurrentWeather(ctx context.Context, cep string) (*entity.Weather, error)
 }
 
 type WeatherHandler struct {
@@ -34,7 +35,8 @@ func (c *WeatherHandler) GetCurrentWeather(w http.ResponseWriter, r *http.Reques
 	ctx := r.Context()
 	ctx = otel.GetTextMapPropagator().Extract(ctx, carrier)
 
-	ctx, spanStart := c.tracer.Start(ctx, "GetCurrentWeatherHandler")
+	ctx, spanStart := c.tracer.Start(ctx, "POST /cep")
+	defer spanStart.End()
 
 	req := r.Body
 	defer req.Close()
@@ -50,7 +52,7 @@ func (c *WeatherHandler) GetCurrentWeather(w http.ResponseWriter, r *http.Reques
 		panic(err)
 	}
 
-	currentWeather, err := c.usecase.GetCurrentWeather(cep.CEP)
+	currentWeather, err := c.usecase.GetCurrentWeather(ctx, cep.CEP)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -73,5 +75,5 @@ func (c *WeatherHandler) GetCurrentWeather(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(weatherCurrentJSON))
 
-	spanStart.End()
+	// spanStart.End()
 }

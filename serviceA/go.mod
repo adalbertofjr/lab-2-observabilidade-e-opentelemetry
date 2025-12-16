@@ -4,7 +4,6 @@ go 1.24.10
 
 require (
 	github.com/go-chi/chi v1.5.5
-	github.com/openzipkin/zipkin-go v0.4.3
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/otel v1.39.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.39.0

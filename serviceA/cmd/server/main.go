@@ -50,7 +50,7 @@ func main() {
 
 func startServer(tracer trace.Tracer) {
 	weatherGateway := gateway.NewWeatherAPI()
-	weatherUseCase := weather.NewWeatherUseCase(weatherGateway)
+	weatherUseCase := weather.NewWeatherUseCase(weatherGateway, tracer)
 	weatherHandler := api.NewWeatherHandler(weatherUseCase, tracer)
 
 	router := chi.NewRouter()
