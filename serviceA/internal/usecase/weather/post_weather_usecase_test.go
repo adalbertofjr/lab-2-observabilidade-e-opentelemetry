@@ -1,12 +1,14 @@
 package weather
 
 import (
+	"context"
 	"errors"
 	"testing"
 
 	"github.com/adalbertofjr/lab-2-go-service-a-otel/internal/domain/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 // MockWeatherGateway is a mock implementation of the WeatherGateway interface
@@ -25,7 +27,9 @@ func (m *MockWeatherGateway) GetCurrentWeather(cep string) (*entity.Weather, err
 func TestWeatherUseCase_GetCurrentWeather_Success(t *testing.T) {
 	// Arrange
 	mockGateway := new(MockWeatherGateway)
-	usecase := NewWeatherUseCase(mockGateway)
+	mockTracer := noop.NewTracerProvider().Tracer("test")
+	usecase := NewWeatherUseCase(mockGateway, mockTracer)
+	ctx := context.Background()
 	cep := "12345678"
 	expectedWeather := &entity.Weather{
 		City:   "Test City",
@@ -37,7 +41,7 @@ func TestWeatherUseCase_GetCurrentWeather_Success(t *testing.T) {
 	mockGateway.On("GetCurrentWeather", "12345678").Return(expectedWeather, nil)
 
 	// Act
-	weather, err := usecase.GetCurrentWeather(cep)
+	weather, err := usecase.GetCurrentWeather(ctx, cep)
 
 	// Assert
 	assert.NoError(t, err)
@@ -50,11 +54,13 @@ func TestWeatherUseCase_GetCurrentWeather_Success(t *testing.T) {
 func TestWeatherUseCase_GetCurrentWeather_InvalidCEP(t *testing.T) {
 	// Arrange
 	mockGateway := new(MockWeatherGateway)
-	usecase := NewWeatherUseCase(mockGateway)
+	mockTracer := noop.NewTracerProvider().Tracer("test")
+	usecase := NewWeatherUseCase(mockGateway, mockTracer)
+	ctx := context.Background()
 	cep := "12345" // Invalid CEP
 
 	// Act
-	weather, err := usecase.GetCurrentWeather(cep)
+	weather, err := usecase.GetCurrentWeather(ctx, cep)
 
 	// Assert
 	assert.Error(t, err)
@@ -66,14 +72,16 @@ func TestWeatherUseCase_GetCurrentWeather_InvalidCEP(t *testing.T) {
 func TestWeatherUseCase_GetCurrentWeather_GatewayError(t *testing.T) {
 	// Arrange
 	mockGateway := new(MockWeatherGateway)
-	usecase := NewWeatherUseCase(mockGateway)
+	mockTracer := noop.NewTracerProvider().Tracer("test")
+	usecase := NewWeatherUseCase(mockGateway, mockTracer)
+	ctx := context.Background()
 	cep := "87654321"
 	gatewayError := errors.New("gateway failed")
 
 	mockGateway.On("GetCurrentWeather", "87654321").Return(nil, gatewayError)
 
 	// Act
-	weather, err := usecase.GetCurrentWeather(cep)
+	weather, err := usecase.GetCurrentWeather(ctx, cep)
 
 	// Assert
 	assert.Error(t, err)
