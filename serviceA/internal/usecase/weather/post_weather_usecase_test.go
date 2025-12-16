@@ -16,8 +16,8 @@ type MockWeatherGateway struct {
 	mock.Mock
 }
 
-func (m *MockWeatherGateway) GetCurrentWeather(cep string) (*entity.Weather, error) {
-	args := m.Called(cep)
+func (m *MockWeatherGateway) GetCurrentWeather(ctx context.Context, cep string) (*entity.Weather, error) {
+	args := m.Called(ctx, cep)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -38,7 +38,7 @@ func TestWeatherUseCase_GetCurrentWeather_Success(t *testing.T) {
 		Temp_k: 298.15,
 	}
 
-	mockGateway.On("GetCurrentWeather", "12345678").Return(expectedWeather, nil)
+	mockGateway.On("GetCurrentWeather", mock.Anything, "12345678").Return(expectedWeather, nil)
 
 	// Act
 	weather, err := usecase.GetCurrentWeather(ctx, cep)
@@ -78,7 +78,7 @@ func TestWeatherUseCase_GetCurrentWeather_GatewayError(t *testing.T) {
 	cep := "87654321"
 	gatewayError := errors.New("gateway failed")
 
-	mockGateway.On("GetCurrentWeather", "87654321").Return(nil, gatewayError)
+	mockGateway.On("GetCurrentWeather", mock.Anything, "87654321").Return(nil, gatewayError)
 
 	// Act
 	weather, err := usecase.GetCurrentWeather(ctx, cep)

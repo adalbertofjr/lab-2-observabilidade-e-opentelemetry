@@ -79,12 +79,6 @@ func initProvider() (func(context.Context) error, error) {
 
 	ctx, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
-	// conn, err := grpc.DialContext(
-	// 	ctx,
-	// 	"otel-collector:4317",
-	// 	grpc.WithTransportCredentials(insecure.NewCredentials()),
-	// 	grpc.WithBlock(),
-	// )
 
 	conn, err := grpc.NewClient(
 		"localhost:4317",

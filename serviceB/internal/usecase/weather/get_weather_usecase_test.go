@@ -1,32 +1,35 @@
 package usecase
 
 import (
+	"context"
 	"errors"
 	"testing"
 
 	"github.com/adalbertofjr/lab-1-go-weather-cloud-run/internal/domain/entity"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 // MockWeatherGateway é um mock do WeatherGateway para testes
 type MockWeatherGateway struct {
-	mockGetCurrentWeather func(cep string) (*entity.Weather, error)
+	mockGetCurrentWeather func(ctx context.Context, cep string) (*entity.Weather, error)
 }
 
-func (m *MockWeatherGateway) GetCurrentWeather(cep string) (*entity.Weather, error) {
-	return m.mockGetCurrentWeather(cep)
+func (m *MockWeatherGateway) GetCurrentWeather(ctx context.Context, cep string) (*entity.Weather, error) {
+	return m.mockGetCurrentWeather(ctx, cep)
 }
 
 func TestGetCurrentWeather_Success(t *testing.T) {
 	// Arrange
 	mockGateway := &MockWeatherGateway{
-		mockGetCurrentWeather: func(cep string) (*entity.Weather, error) {
+		mockGetCurrentWeather: func(ctx context.Context, cep string) (*entity.Weather, error) {
 			return entity.NewWeather("São Paulo", 25.5), nil
 		},
 	}
-	useCase := NewWeatherUseCase(mockGateway)
+	mockTracer := noop.NewTracerProvider().Tracer("test")
+	useCase := NewWeatherUseCase(mockGateway, mockTracer)
 
 	// Act
-	result, err := useCase.GetCurrentWeather("04446-160")
+	result, err := useCase.GetCurrentWeather(context.Background(), "04446-160")
 
 	// Assert
 	if err != nil {
@@ -52,17 +55,18 @@ func TestGetCurrentWeather_Success(t *testing.T) {
 func TestGetCurrentWeather_CEPWithoutDash(t *testing.T) {
 	// Arrange
 	mockGateway := &MockWeatherGateway{
-		mockGetCurrentWeather: func(cep string) (*entity.Weather, error) {
+		mockGetCurrentWeather: func(ctx context.Context, cep string) (*entity.Weather, error) {
 			if cep != "04446160" {
 				t.Errorf("Expected CEP '04446160', got '%s'", cep)
 			}
 			return entity.NewWeather("São Paulo", 20.0), nil
 		},
 	}
-	useCase := NewWeatherUseCase(mockGateway)
+	mockTracer := noop.NewTracerProvider().Tracer("test")
+	useCase := NewWeatherUseCase(mockGateway, mockTracer)
 
 	// Act
-	result, err := useCase.GetCurrentWeather("04446160")
+	result, err := useCase.GetCurrentWeather(context.Background(), "04446160")
 
 	// Assert
 	if err != nil {
@@ -76,17 +80,18 @@ func TestGetCurrentWeather_CEPWithoutDash(t *testing.T) {
 func TestGetCurrentWeather_CEPWithDash(t *testing.T) {
 	// Arrange
 	mockGateway := &MockWeatherGateway{
-		mockGetCurrentWeather: func(cep string) (*entity.Weather, error) {
+		mockGetCurrentWeather: func(ctx context.Context, cep string) (*entity.Weather, error) {
 			if cep != "04446160" {
 				t.Errorf("Expected formatted CEP '04446160', got '%s'", cep)
 			}
 			return entity.NewWeather("São Paulo", 20.0), nil
 		},
 	}
-	useCase := NewWeatherUseCase(mockGateway)
+	mockTracer := noop.NewTracerProvider().Tracer("test")
+	useCase := NewWeatherUseCase(mockGateway, mockTracer)
 
 	// Act
-	result, err := useCase.GetCurrentWeather("04446-160")
+	result, err := useCase.GetCurrentWeather(context.Background(), "04446-160")
 
 	// Assert
 	if err != nil {
@@ -100,12 +105,13 @@ func TestGetCurrentWeather_CEPWithDash(t *testing.T) {
 func TestGetCurrentWeather_InvalidCEP(t *testing.T) {
 	// Arrange
 	mockGateway := &MockWeatherGateway{
-		mockGetCurrentWeather: func(cep string) (*entity.Weather, error) {
+		mockGetCurrentWeather: func(ctx context.Context, cep string) (*entity.Weather, error) {
 			t.Error("Gateway should not be called for invalid CEP")
 			return nil, errors.New("should not reach here")
 		},
 	}
-	useCase := NewWeatherUseCase(mockGateway)
+	mockTracer := noop.NewTracerProvider().Tracer("test")
+	useCase := NewWeatherUseCase(mockGateway, mockTracer)
 
 	invalidCEPs := []string{
 		"1234567",
@@ -119,7 +125,7 @@ func TestGetCurrentWeather_InvalidCEP(t *testing.T) {
 
 	// Act & Assert
 	for _, invalidCEP := range invalidCEPs {
-		result, err := useCase.GetCurrentWeather(invalidCEP)
+		result, err := useCase.GetCurrentWeather(context.Background(), invalidCEP)
 
 		if err == nil {
 			t.Errorf("Expected error for invalid CEP '%s', got nil", invalidCEP)
@@ -140,14 +146,15 @@ func TestGetCurrentWeather_InvalidCEP(t *testing.T) {
 func TestGetCurrentWeather_CEPNotFound(t *testing.T) {
 	// Arrange
 	mockGateway := &MockWeatherGateway{
-		mockGetCurrentWeather: func(cep string) (*entity.Weather, error) {
+		mockGetCurrentWeather: func(ctx context.Context, cep string) (*entity.Weather, error) {
 			return nil, errors.New("CEP not found in external API")
 		},
 	}
-	useCase := NewWeatherUseCase(mockGateway)
+	mockTracer := noop.NewTracerProvider().Tracer("test")
+	useCase := NewWeatherUseCase(mockGateway, mockTracer)
 
 	// Act
-	result, err := useCase.GetCurrentWeather("99999-999")
+	result, err := useCase.GetCurrentWeather(context.Background(), "99999-999")
 
 	// Assert
 	if err == nil {
@@ -167,14 +174,15 @@ func TestGetCurrentWeather_CEPNotFound(t *testing.T) {
 func TestGetCurrentWeather_GatewayError(t *testing.T) {
 	// Arrange
 	mockGateway := &MockWeatherGateway{
-		mockGetCurrentWeather: func(cep string) (*entity.Weather, error) {
+		mockGetCurrentWeather: func(ctx context.Context, cep string) (*entity.Weather, error) {
 			return nil, errors.New("timeout connecting to weather API")
 		},
 	}
-	useCase := NewWeatherUseCase(mockGateway)
+	mockTracer := noop.NewTracerProvider().Tracer("test")
+	useCase := NewWeatherUseCase(mockGateway, mockTracer)
 
 	// Act
-	result, err := useCase.GetCurrentWeather("04446-160")
+	result, err := useCase.GetCurrentWeather(context.Background(), "04446-160")
 
 	// Assert
 	if err == nil {
@@ -202,16 +210,17 @@ func TestGetCurrentWeather_VariousValidCEPs(t *testing.T) {
 
 	for input, expectedFormatted := range validCEPs {
 		mockGateway := &MockWeatherGateway{
-			mockGetCurrentWeather: func(cep string) (*entity.Weather, error) {
+			mockGetCurrentWeather: func(ctx context.Context, cep string) (*entity.Weather, error) {
 				if cep != expectedFormatted {
 					t.Errorf("Expected formatted CEP '%s', got '%s'", expectedFormatted, cep)
 				}
 				return entity.NewWeather("Test City", 15.0), nil
 			},
 		}
-		useCase := NewWeatherUseCase(mockGateway)
+		mockTracer := noop.NewTracerProvider().Tracer("test")
+		useCase := NewWeatherUseCase(mockGateway, mockTracer)
 
-		result, err := useCase.GetCurrentWeather(input)
+		result, err := useCase.GetCurrentWeather(context.Background(), input)
 
 		if err != nil {
 			t.Errorf("CEP '%s': Expected no error, got %v", input, err)
@@ -225,14 +234,15 @@ func TestGetCurrentWeather_VariousValidCEPs(t *testing.T) {
 func TestGetCurrentWeather_NegativeTemperature(t *testing.T) {
 	// Arrange
 	mockGateway := &MockWeatherGateway{
-		mockGetCurrentWeather: func(cep string) (*entity.Weather, error) {
+		mockGetCurrentWeather: func(ctx context.Context, cep string) (*entity.Weather, error) {
 			return entity.NewWeather("Polo Norte", -40.0), nil
 		},
 	}
-	useCase := NewWeatherUseCase(mockGateway)
+	mockTracer := noop.NewTracerProvider().Tracer("test")
+	useCase := NewWeatherUseCase(mockGateway, mockTracer)
 
 	// Act
-	result, err := useCase.GetCurrentWeather("00000-000")
+	result, err := useCase.GetCurrentWeather(context.Background(), "00000-000")
 
 	// Assert
 	if err != nil {

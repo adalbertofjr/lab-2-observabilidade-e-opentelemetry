@@ -29,7 +29,7 @@ func (w *WeatherUseCase) GetCurrentWeather(ctx context.Context, cep string) (*en
 
 	// Span para chamada ao gateway
 	ctx, spanGetWeather := w.tracer.Start(ctx, "call_service_b")
-	weatherData, err := w.weatherGateway.GetCurrentWeather(cepFormated)
+	weatherData, err := w.weatherGateway.GetCurrentWeather(ctx, cepFormated)
 	spanGetWeather.End()
 	if err != nil {
 		return nil, err

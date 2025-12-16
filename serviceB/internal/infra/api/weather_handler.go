@@ -1,30 +1,41 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
 	"github.com/adalbertofjr/lab-1-go-weather-cloud-run/internal/domain/entity"
 	"github.com/adalbertofjr/lab-1-go-weather-cloud-run/internal/infra/api/dto"
 	internalerror "github.com/adalbertofjr/lab-1-go-weather-cloud-run/internal/infra/internal_error"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type WeatherUseCaseInterface interface {
-	GetCurrentWeather(cep string) (*entity.Weather, *internalerror.InternalError)
+	GetCurrentWeather(ctx context.Context, cep string) (*entity.Weather, *internalerror.InternalError)
 }
 
 type WeatherHandler struct {
 	usecase WeatherUseCaseInterface
+	tracer  trace.Tracer
 }
 
-func NewWeatherHandler(useCase WeatherUseCaseInterface) *WeatherHandler {
-	return &WeatherHandler{usecase: useCase}
+func NewWeatherHandler(useCase WeatherUseCaseInterface, tracer trace.Tracer) *WeatherHandler {
+	return &WeatherHandler{usecase: useCase, tracer: tracer}
 }
 
 func (h *WeatherHandler) GetWeather(w http.ResponseWriter, r *http.Request) {
-	cep := r.URL.Query().Get("cep")
+	carrier := propagation.HeaderCarrier(r.Header)
+	ctx := r.Context()
+	ctx = otel.GetTextMapPropagator().Extract(ctx, carrier)
 
-	weatherCurrent, err := h.usecase.GetCurrentWeather(cep)
+	cep := r.URL.Query().Get("cep")
+	ctx, spanStart := h.tracer.Start(ctx, "Get /?cep="+cep)
+	defer spanStart.End()
+
+	weatherCurrent, err := h.usecase.GetCurrentWeather(ctx, cep)
 	if err != nil {
 		http.Error(w, err.MSG, err.Code)
 		return

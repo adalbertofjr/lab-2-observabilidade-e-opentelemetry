@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,6 +9,8 @@ import (
 	"net/url"
 
 	"github.com/adalbertofjr/lab-2-go-service-a-otel/internal/domain/entity"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 type WeatherAPI struct {
@@ -24,10 +27,20 @@ func NewWeatherAPI() *WeatherAPI {
 	return &WeatherAPI{}
 }
 
-func (w *WeatherAPI) GetCurrentWeather(cep string) (*entity.Weather, error) {
+func (w *WeatherAPI) GetCurrentWeather(ctx context.Context, cep string) (*entity.Weather, error) {
 	url := fmt.Sprintf("http://localhost:8000/?cep=%s", url.QueryEscape(cep))
+
+	// Cria a requisição com contexto
+	req, err := http.NewRequestWithContext(ctx, "POST", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Injeta os headers de propagação de trace
+	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
+
 	client := http.Client{}
-	resp, err := client.Post(url, "application/json", nil)
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}

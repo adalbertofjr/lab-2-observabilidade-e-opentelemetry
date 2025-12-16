@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -8,23 +9,25 @@ import (
 
 	"github.com/adalbertofjr/lab-1-go-weather-cloud-run/internal/domain/entity"
 	internalerror "github.com/adalbertofjr/lab-1-go-weather-cloud-run/internal/infra/internal_error"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 type MockWeatherUseCase struct {
-	mockGetCurrentWeather func(cep string) (*entity.Weather, *internalerror.InternalError)
+	mockGetCurrentWeather func(ctx context.Context, cep string) (*entity.Weather, *internalerror.InternalError)
 }
 
-func (m *MockWeatherUseCase) GetCurrentWeather(cep string) (*entity.Weather, *internalerror.InternalError) {
-	return m.mockGetCurrentWeather(cep)
+func (m *MockWeatherUseCase) GetCurrentWeather(ctx context.Context, cep string) (*entity.Weather, *internalerror.InternalError) {
+	return m.mockGetCurrentWeather(ctx, cep)
 }
 
 func TestGetWeather_Success(t *testing.T) {
 	mockUseCase := &MockWeatherUseCase{
-		mockGetCurrentWeather: func(cep string) (*entity.Weather, *internalerror.InternalError) {
+		mockGetCurrentWeather: func(ctx context.Context, cep string) (*entity.Weather, *internalerror.InternalError) {
 			return entity.NewWeather("São Paulo", 25.5), nil
 		},
 	}
-	handler := NewWeatherHandler(mockUseCase)
+	mockTracer := noop.NewTracerProvider().Tracer("test")
+	handler := NewWeatherHandler(mockUseCase, mockTracer)
 
 	req := httptest.NewRequest(http.MethodGet, "/weather?cep=04446-160", nil)
 	w := httptest.NewRecorder()
@@ -62,11 +65,12 @@ func TestGetWeather_Success(t *testing.T) {
 
 func TestGetWeather_InvalidCEP(t *testing.T) {
 	mockUseCase := &MockWeatherUseCase{
-		mockGetCurrentWeather: func(cep string) (*entity.Weather, *internalerror.InternalError) {
+		mockGetCurrentWeather: func(ctx context.Context, cep string) (*entity.Weather, *internalerror.InternalError) {
 			return nil, internalerror.CEPInvalidError()
 		},
 	}
-	handler := NewWeatherHandler(mockUseCase)
+	mockTracer := noop.NewTracerProvider().Tracer("test")
+	handler := NewWeatherHandler(mockUseCase, mockTracer)
 
 	req := httptest.NewRequest(http.MethodGet, "/weather?cep=123", nil)
 	w := httptest.NewRecorder()
@@ -86,11 +90,12 @@ func TestGetWeather_InvalidCEP(t *testing.T) {
 
 func TestGetWeather_CEPNotFound(t *testing.T) {
 	mockUseCase := &MockWeatherUseCase{
-		mockGetCurrentWeather: func(cep string) (*entity.Weather, *internalerror.InternalError) {
+		mockGetCurrentWeather: func(ctx context.Context, cep string) (*entity.Weather, *internalerror.InternalError) {
 			return nil, internalerror.CEPNotFoundError()
 		},
 	}
-	handler := NewWeatherHandler(mockUseCase)
+	mockTracer := noop.NewTracerProvider().Tracer("test")
+	handler := NewWeatherHandler(mockUseCase, mockTracer)
 
 	req := httptest.NewRequest(http.MethodGet, "/weather?cep=99999-999", nil)
 	w := httptest.NewRecorder()
@@ -110,14 +115,15 @@ func TestGetWeather_CEPNotFound(t *testing.T) {
 
 func TestGetWeather_MissingCEPParameter(t *testing.T) {
 	mockUseCase := &MockWeatherUseCase{
-		mockGetCurrentWeather: func(cep string) (*entity.Weather, *internalerror.InternalError) {
+		mockGetCurrentWeather: func(ctx context.Context, cep string) (*entity.Weather, *internalerror.InternalError) {
 			if cep == "" {
 				return nil, internalerror.CEPInvalidError()
 			}
 			return entity.NewWeather("Test", 20.0), nil
 		},
 	}
-	handler := NewWeatherHandler(mockUseCase)
+	mockTracer := noop.NewTracerProvider().Tracer("test")
+	handler := NewWeatherHandler(mockUseCase, mockTracer)
 
 	req := httptest.NewRequest(http.MethodGet, "/weather", nil)
 	w := httptest.NewRecorder()
@@ -131,11 +137,12 @@ func TestGetWeather_MissingCEPParameter(t *testing.T) {
 
 func TestGetWeather_JSONStructure(t *testing.T) {
 	mockUseCase := &MockWeatherUseCase{
-		mockGetCurrentWeather: func(cep string) (*entity.Weather, *internalerror.InternalError) {
+		mockGetCurrentWeather: func(ctx context.Context, cep string) (*entity.Weather, *internalerror.InternalError) {
 			return entity.NewWeather("Rio de Janeiro", 30.0), nil
 		},
 	}
-	handler := NewWeatherHandler(mockUseCase)
+	mockTracer := noop.NewTracerProvider().Tracer("test")
+	handler := NewWeatherHandler(mockUseCase, mockTracer)
 
 	req := httptest.NewRequest(http.MethodGet, "/weather?cep=20000-000", nil)
 	w := httptest.NewRecorder()
@@ -177,11 +184,12 @@ func TestGetWeather_DifferentTemperatures(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mockUseCase := &MockWeatherUseCase{
-				mockGetCurrentWeather: func(cep string) (*entity.Weather, *internalerror.InternalError) {
+				mockGetCurrentWeather: func(ctx context.Context, cep string) (*entity.Weather, *internalerror.InternalError) {
 					return entity.NewWeather(tc.city, tc.tempC), nil
 				},
 			}
-			handler := NewWeatherHandler(mockUseCase)
+			mockTracer := noop.NewTracerProvider().Tracer("test")
+			handler := NewWeatherHandler(mockUseCase, mockTracer)
 
 			req := httptest.NewRequest(http.MethodGet, "/weather?cep=12345-678", nil)
 			w := httptest.NewRecorder()
@@ -222,11 +230,12 @@ func TestGetWeather_CEPFormats(t *testing.T) {
 	for _, cep := range cepFormats {
 		t.Run("CEP_"+cep, func(t *testing.T) {
 			mockUseCase := &MockWeatherUseCase{
-				mockGetCurrentWeather: func(receivedCEP string) (*entity.Weather, *internalerror.InternalError) {
+				mockGetCurrentWeather: func(ctx context.Context, receivedCEP string) (*entity.Weather, *internalerror.InternalError) {
 					return entity.NewWeather("Test City", 22.0), nil
 				},
 			}
-			handler := NewWeatherHandler(mockUseCase)
+			mockTracer := noop.NewTracerProvider().Tracer("test")
+			handler := NewWeatherHandler(mockUseCase, mockTracer)
 
 			req := httptest.NewRequest(http.MethodGet, "/weather?cep="+cep, nil)
 			w := httptest.NewRecorder()
