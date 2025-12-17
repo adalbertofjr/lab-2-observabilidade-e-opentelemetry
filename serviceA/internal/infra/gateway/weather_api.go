@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 
 	"github.com/adalbertofjr/lab-2-go-service-a-otel/internal/domain/entity"
 	"go.opentelemetry.io/otel"
@@ -14,6 +15,7 @@ import (
 )
 
 type WeatherAPI struct {
+	serviceBURL string
 }
 
 type WeatherAPIResponse struct {
@@ -24,11 +26,17 @@ type WeatherAPIResponse struct {
 }
 
 func NewWeatherAPI() *WeatherAPI {
-	return &WeatherAPI{}
+	serviceBURL := os.Getenv("SERVICE_B_URL")
+	if serviceBURL == "" {
+		serviceBURL = "http://localhost:8000"
+	}
+	return &WeatherAPI{
+		serviceBURL: serviceBURL,
+	}
 }
 
 func (w *WeatherAPI) GetCurrentWeather(ctx context.Context, cep string) (*entity.Weather, error) {
-	url := fmt.Sprintf("http://localhost:8000/?cep=%s", url.QueryEscape(cep))
+	url := fmt.Sprintf("%s/?cep=%s", w.serviceBURL, url.QueryEscape(cep))
 
 	// Cria a requisição com contexto
 	req, err := http.NewRequestWithContext(ctx, "POST", url, nil)

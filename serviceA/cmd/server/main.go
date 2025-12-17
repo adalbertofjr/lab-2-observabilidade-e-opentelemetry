@@ -80,8 +80,13 @@ func initProvider() (func(context.Context) error, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
 
+	otelEndpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	if otelEndpoint == "" {
+		otelEndpoint = "localhost:4317"
+	}
+
 	conn, err := grpc.NewClient(
-		"localhost:4317",
+		otelEndpoint,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 
